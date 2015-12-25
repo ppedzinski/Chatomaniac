@@ -20,7 +20,7 @@ class MainWindow(QMainWindow):
 
         self.createActions()
         self.createMenus()
-        self.mainWidget = MainWidget()
+        self.mainWidget = MainWidget(self.user)
         self.setCentralWidget(self.mainWidget)
 
         self.setGeometry(300, 300, 300, 200)
