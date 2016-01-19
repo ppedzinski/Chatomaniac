@@ -1,5 +1,7 @@
 import time
 import socket
+import shelve
+import sys
 import _thread
 from PyQt5.QtGui import QTextCursor
 from PyQt5.QtGui import QColor
@@ -21,11 +23,16 @@ class MainWidget(QWidget):
         super().__init__()
 
         self.serverRole = False
-        self.tcp_ip = '127.0.0.1'
+        self.tcp_ip = '192.168.1.1'
+        #self.tcp_ip = '127.0.0.1'
         self.tcp_port = 5005
         self.buffer_size = 1024
         self.message = ""
         self.s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        if sys.argv[1] != "test":
+            self.db = shelve.open('database5', 'c')
+
 
         self.serverThread = ServerWaitThread(self.s, self.buffer_size)
         self.clientThread = ClientWaitThread(self.s, self.buffer_size)
@@ -33,7 +40,7 @@ class MainWidget(QWidget):
         self.serverThread.receivedMessage.connect(self.handleReceivedMessage)
 
         self.user = user
-        self.messageLineEdit = QLineEdit(self)
+        self.messageLineEdit = QLineEdit("enter text here", self)
         self.conversationTextEdit = QTextEdit(self)
         self.sendButton = QPushButton("Send", self)
 
@@ -73,7 +80,13 @@ class MainWidget(QWidget):
     def sendButtonClicked(self):
         text = self.user.name + "(" + time.strftime("%H:%M:%S") + ")" + "\n" + self.messageLineEdit.text()
         self.conversationTextEdit.append(text)
-
+        text +="\n"
+        if sys.argv[1] != "test":
+            if self.user.name in self.db:
+                self.db[self.user.name] += text
+            else:
+                self.db[self.user.name] = ""
+                self.db[self.user.name] += text
         self.messageLineEdit.setText("")
 
         if self.serverRole:
@@ -82,7 +95,9 @@ class MainWidget(QWidget):
             self.clientThread.sendMessageToServer(bytes(text, 'UTF-8'))
 
     def handleReceivedMessage(self, data):
-        self.conversationTextEdit.append(data)
+        self.conversationTextEdit.append(data.rstrip())
+        if sys.argv[1] != "test":
+            self.db[self.user.name].append(data)
 
     def initialize_socket(self):
         try:
@@ -100,7 +115,9 @@ class MainWidget(QWidget):
         print(i)
         self.s.listen(2)
 
-
+"""
+Class that represents server. It is made as thread
+"""
 class ServerWaitThread(QThread):
     receivedMessage = pyqtSignal(str)
     def __init__(self, s, buffer_size):
@@ -133,7 +150,9 @@ class ServerWaitThread(QThread):
             self.conn.send(message)
         except:
             print("Client is not yet there")
-
+"""
+Class that represents client. It is made as thread
+"""
 class ClientWaitThread(QThread):
     receivedMessage = pyqtSignal(str)
     def __init__(self, s, buffer_size):
